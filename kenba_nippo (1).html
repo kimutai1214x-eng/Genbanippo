@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>現場日報アプリ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0f1117;--surface:#181c25;--card:#1e2330;--border:rgba(255,255,255,0.08);
+  --border-acc:rgba(245,197,24,0.4);--acc:#f5c518;--acc-dim:rgba(245,197,24,0.12);
+  --txt:#f0f0f0;--txt2:#8a9bb5;--muted:#4a5568;--danger:#e05252;--ok:#4caf80;--blue:#4a90d9;
+  --font: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);min-height:100vh;}
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;}
+.logo-icon{width:28px;height:28px;background:var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#0f1117;font-size:13px;font-weight:700;}
+.nav-tabs{display:flex;gap:3px;flex-wrap:wrap;}
+.nav-tab{padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:none;background:transparent;color:var(--txt2);transition:all .15s;white-space:nowrap;font-family:var(--font);}
+.nav-tab.active{background:var(--acc-dim);color:var(--acc);border:1px solid var(--border-acc);}
+.nav-tab:hover:not(.active){background:rgba(255,255,255,0.05);color:var(--txt);}
+.content{padding:16px;max-width:720px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+.section-title{font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+@media(max-width:500px){
+  .grid-2{grid-template-columns:1fr;}
+  .grid-3{grid-template-columns:1fr 1fr;}
+  .nav-tab{padding:5px 8px;font-size:11px;}
+  .content{padding:12px;}
+}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:13px;}
+.stat-label{font-size:11px;color:var(--muted);margin-bottom:3px;letter-spacing:.04em;}
+.stat-value{font-size:22px;font-weight:600;color:var(--txt);}
+.stat-sub{font-size:11px;color:var(--txt2);margin-top:2px;}
+.form-group{margin-bottom:13px;}
+.form-label{display:block;font-size:12px;color:var(--txt2);margin-bottom:5px;letter-spacing:.02em;}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--txt);font-family:var(--font);font-size:14px;padding:9px 12px;transition:border-color .15s;-webkit-appearance:none;appearance:none;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--acc);}
+.form-textarea{resize:vertical;min-height:90px;line-height:1.6;}
+.form-select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238a9bb5' d='M6 8L1 3h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;}
+.form-select option{background:#1e2330;}
+.weather-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.weather-btn{padding:8px 4px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--txt2);font-size:11px;cursor:pointer;text-align:center;transition:all .15s;font-family:var(--font);}
+.weather-btn .wicon{font-size:18px;display:block;margin-bottom:3px;}
+.weather-btn.selected{background:var(--acc-dim);border-color:var(--border-acc);color:var(--acc);}
+.photo-upload-area{border:2px dashed var(--border);border-radius:8px;padding:22px;text-align:center;cursor:pointer;transition:border-color .15s;position:relative;}
+.photo-upload-area:hover{border-color:var(--acc);}
+.photo-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.photo-thumb{aspect-ratio:1;border-radius:6px;object-fit:cover;border:1px solid var(--border);width:100%;}
+.btn{padding:9px 18px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:var(--font);}
+.btn-primary{background:var(--acc);color:#0f1117;}
+.btn-primary:hover{background:#e0b510;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--txt2);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--txt);}
+.btn-pdf{background:rgba(74,144,217,0.15);color:var(--blue);border:1px solid rgba(74,144,217,0.3);}
+.btn-pdf:hover{background:rgba(74,144,217,0.25);}
+.btn-danger{background:rgba(224,82,82,0.15);color:var(--danger);border:1px solid rgba(224,82,82,0.3);}
+.btn-edit{background:rgba(76,175,128,0.15);color:var(--ok);border:1px solid rgba(76,175,128,0.3);}
+.btn-edit:hover{background:rgba(76,175,128,0.25);}
+.report-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:9px;cursor:pointer;transition:border-color .15s;}
+.report-card:hover{border-color:rgba(245,197,24,0.35);}
+.report-meta{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap;}
+.tag{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:500;}
+.tag-site{background:var(--acc-dim);color:var(--acc);border:1px solid var(--border-acc);}
+.tag-weather{background:rgba(74,144,217,0.15);color:var(--blue);border:1px solid rgba(74,144,217,0.3);}
+.report-preview{font-size:13px;color:var(--txt2);line-height:1.5;}
+.detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto;}
+.detail-overlay.open{display:flex;}
+.detail-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:560px;margin:auto;}
+.divider{border:none;border-top:1px solid var(--border);margin:14px 0;}
+.site-item{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 15px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;}
+.filter-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.filter-row .form-select{flex:1;min-width:120px;}
+.workers-input{display:flex;align-items:center;gap:8px;}
+.workers-btn{width:34px;height:34px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--txt);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.workers-btn:hover{border-color:var(--acc);color:var(--acc);}
+.workers-num{font-size:20px;font-weight:600;min-width:38px;text-align:center;}
+.toast{position:fixed;bottom:24px;right:20px;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;color:#fff;}
+.toast.show{opacity:1;}
+.chart-container{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;}
+.tab-sub{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.tab-sub-btn{padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--txt2);transition:all .15s;font-family:var(--font);}
+.tab-sub-btn.active{background:var(--acc-dim);color:var(--acc);border-color:var(--border-acc);}
+.progress-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.progress-label{font-size:12px;color:var(--txt2);width:130px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.progress-bar-wrap{flex:1;background:rgba(255,255,255,0.06);border-radius:20px;height:8px;overflow:hidden;}
+.progress-bar-fill{height:100%;border-radius:20px;background:var(--acc);transition:width .5s;}
+.progress-count{font-size:12px;color:var(--txt);min-width:28px;text-align:right;}
+.save-banner{background:var(--acc-dim);border:1px solid var(--border-acc);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--acc);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">現</div>
+    <span>現場日報</span>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard')">概要</button>
+    <button class="nav-tab" onclick="showPage('graph')">進捗</button>
+    <button class="nav-tab" onclick="showPage('reports')">日報</button>
+    <button class="nav-tab" onclick="showPage('new')">記録</button>
+    <button class="nav-tab" onclick="showPage('sites')">現場</button>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- Dashboard -->
+  <div id="page-dashboard" class="page active">
+    <div class="section-title" style="margin-bottom:14px;">ダッシュボード</div>
+    <div class="grid-3" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-label">今月の日報</div><div class="stat-value" id="stat-reports">0</div><div class="stat-sub">件</div></div>
+      <div class="stat-card"><div class="stat-label">管理現場数</div><div class="stat-value" id="stat-sites">0</div><div class="stat-sub">か所</div></div>
+      <div class="stat-card"><div class="stat-label">今日の作業員</div><div class="stat-value" id="stat-workers">0</div><div class="stat-sub">人</div></div>
+    </div>
+    <div class="section-title">最近の日報</div>
+    <div id="recent-reports"></div>
+  </div>
+
+  <!-- Graph -->
+  <div id="page-graph" class="page">
+    <div class="section-title">工程進捗グラフ</div>
+    <div class="card" style="margin-bottom:12px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">現場を選択</label>
+        <select class="form-select" id="graph-site-select" onchange="renderGraph()">
+          <option value="">全現場</option>
+        </select>
+      </div>
+    </div>
+    <div class="tab-sub">
+      <button class="tab-sub-btn active" onclick="switchGraphTab('workers',this)">作業員推移</button>
+      <button class="tab-sub-btn" onclick="switchGraphTab('daily',this)">日報件数</button>
+      <button class="tab-sub-btn" onclick="switchGraphTab('sites',this)">現場別進捗</button>
+    </div>
+    <div class="chart-container">
+      <canvas id="mainChart" height="180"></canvas>
+    </div>
+    <div id="site-progress-bars"></div>
+    <div style="text-align:right;margin-top:10px;">
+      <button class="btn btn-pdf" onclick="exportGraphPDF()">📄 進捗レポートをPDF出力</button>
+    </div>
+  </div>
+
+  <!-- Reports List -->
+  <div id="page-reports" class="page">
+    <div class="section-title">日報一覧</div>
+    <div class="filter-row">
+      <select class="form-select" id="filter-site" onchange="renderReports()"><option value="">すべての現場</option></select>
+      <select class="form-select" id="filter-month" onchange="renderReports()"><option value="">すべての月</option></select>
+    </div>
+    <div id="reports-list"></div>
+  </div>
+
+  <!-- New Report -->
+  <div id="page-new" class="page">
+    <div class="section-title">日報を記録</div>
+    <div class="card">
+      <div class="form-group">
+        <label class="form-label">現場名 *</label>
+        <select class="form-select" id="new-site"><option value="">現場を選択してください</option></select>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">日付 *</label>
+          <input type="date" class="form-input" id="new-date">
+        </div>
+        <div class="form-group">
+          <label class="form-label">作業員人数</label>
+          <div class="workers-input">
+            <button class="workers-btn" onclick="changeWorkers(-1)">−</button>
+            <span class="workers-num" id="workers-display">5</span>
+            <button class="workers-btn" onclick="changeWorkers(1)">＋</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">天気</label>
+        <div class="weather-grid">
+          <button class="weather-btn selected" onclick="selectWeather(this,'晴れ')"><span class="wicon">☀️</span>晴れ</button>
+          <button class="weather-btn" onclick="selectWeather(this,'曇り')"><span class="wicon">☁️</span>曇り</button>
+          <button class="weather-btn" onclick="selectWeather(this,'雨')"><span class="wicon">🌧️</span>雨</button>
+          <button class="weather-btn" onclick="selectWeather(this,'雪')"><span class="wicon">❄️</span>雪</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">気温 (℃)</label>
+        <input type="number" class="form-input" id="new-temp" placeholder="例: 22" style="max-width:120px;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">作業内容・進捗 *</label>
+        <textarea class="form-textarea" id="new-content" placeholder="本日の作業内容、進捗状況、特記事項などを入力してください..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">写真</label>
+        <div class="photo-upload-area" id="upload-area">
+          <input type="file" id="photo-input" accept="image/*" multiple onchange="handlePhotos(this)">
+          <div style="font-size:30px;margin-bottom:8px;">📷</div>
+          <div style="font-size:13px;color:var(--txt2);">写真を追加</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">タップまたはクリックで選択（複数可）</div>
+        </div>
+        <div class="photo-grid" id="photo-preview"></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn btn-ghost" onclick="clearForm()">クリア</button>
+        <button class="btn btn-primary" onclick="saveReport()">日報を保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sites -->
+  <div id="page-sites" class="page">
+    <div class="section-title">現場管理</div>
+    <div class="card">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">新しい現場を追加</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="new-site-name" placeholder="例: 熊本駅前ビル新築工事" onkeydown="if(event.key==='Enter')addSite()">
+          <button class="btn btn-primary" onclick="addSite()" style="white-space:nowrap;flex-shrink:0;">追加</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-title">登録済み現場</div>
+    <div id="sites-list"></div>
+  </div>
+
+</div>
+
+<!-- Detail Modal -->
+<div class="detail-overlay" id="detail-overlay" onclick="closeDetail(event)">
+  <div class="detail-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <span id="detail-site-badge" class="tag tag-site" style="font-size:13px;"></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-edit" style="padding:6px 12px;font-size:12px;" onclick="openEditModal()">✏️ 編集</button>
+        <button class="btn btn-pdf" style="padding:6px 12px;font-size:12px;" onclick="exportSinglePDF()">📄 PDF出力</button>
+        <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px;" onclick="closeDetailBtn()">✕ 閉じる</button>
+      </div>
+    </div>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="detail-overlay" id="edit-overlay" onclick="closeEditOverlay(event)">
+  <div class="detail-panel" style="max-width:580px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:14px;font-weight:600;color:var(--acc);">✏️ 日報を編集</span>
+      <button class="btn btn-ghost" style="padding:5px 11px;font-size:12px;" onclick="closeEditOverlayBtn()">✕ 閉じる</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">現場名 *</label>
+      <select class="form-select" id="edit-site"></select>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">日付 *</label>
+        <input type="date" class="form-input" id="edit-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">作業員人数</label>
+        <div class="workers-input">
+          <button class="workers-btn" onclick="changeEditWorkers(-1)">−</button>
+          <span class="workers-num" id="edit-workers-display">5</span>
+          <button class="workers-btn" onclick="changeEditWorkers(1)">＋</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">天気</label>
+      <div class="weather-grid" id="edit-weather-grid">
+        <button class="weather-btn" onclick="selectEditWeather(this,'晴れ')"><span class="wicon">☀️</span>晴れ</button>
+        <button class="weather-btn" onclick="selectEditWeather(this,'曇り')"><span class="wicon">☁️</span>曇り</button>
+        <button class="weather-btn" onclick="selectEditWeather(this,'雨')"><span class="wicon">🌧️</span>雨</button>
+        <button class="weather-btn" onclick="selectEditWeather(this,'雪')"><span class="wicon">❄️</span>雪</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">気温 (℃)</label>
+      <input type="number" class="form-input" id="edit-temp" style="max-width:120px;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">作業内容・進捗 *</label>
+      <textarea class="form-textarea" id="edit-content" style="min-height:110px;"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">写真</label>
+      <div id="edit-photo-current" class="photo-grid" style="margin-bottom:10px;"></div>
+      <div class="photo-upload-area" onclick="document.getElementById('edit-photo-input').click()">
+        <input type="file" id="edit-photo-input" accept="image/*" multiple onchange="handleEditPhotos(this)">
+        <div style="font-size:22px;margin-bottom:5px;">📷</div>
+        <div style="font-size:12px;color:var(--txt2);">写真を追加・差し替え</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">選択すると現在の写真が置き換わります</div>
+      </div>
+      <div class="photo-grid" id="edit-photo-preview"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin-top:4px;">
+      <button class="btn btn-danger" onclick="deleteReportFromEdit()">この日報を削除</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="closeEditOverlayBtn()">キャンセル</button>
+        <button class="btn btn-primary" onclick="updateReport()">変更を保存する</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Period Select Modal -->
+<div class="detail-overlay" id="period-overlay" onclick="closePeriodOverlay(event)">
+  <div class="detail-panel" style="max-width:420px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:14px;font-weight:600;color:var(--acc);">PDF出力 — 期間を選択</span>
+      <button class="btn btn-ghost" style="padding:5px 11px;font-size:12px;" onclick="closePeriodOverlayBtn()">×</button>
+    </div>
+    <div style="font-size:13px;font-weight:500;color:var(--txt);margin-bottom:14px;" id="period-site-label"></div>
+    <div class="tab-sub" style="margin-bottom:16px;">
+      <button class="tab-sub-btn active" onclick="switchPeriodTab('all',this)">全期間</button>
+      <button class="tab-sub-btn" onclick="switchPeriodTab('month',this)">月を選択</button>
+      <button class="tab-sub-btn" onclick="switchPeriodTab('custom',this)">日付範囲</button>
+    </div>
+    <div id="period-all-section">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:12px 14px;font-size:13px;color:var(--txt2);">
+        登録されているすべての日報を出力します
+      </div>
+    </div>
+    <div id="period-month-section" style="display:none;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">月を選択</label>
+        <select class="form-select" id="period-month-select" onchange="updatePeriodCount()"></select>
+      </div>
+    </div>
+    <div id="period-custom-section" style="display:none;">
+      <div class="grid-2">
+        <div class="form-group">
+          <label class="form-label">開始日</label>
+          <input type="date" class="form-input" id="period-start" onchange="updatePeriodCount()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">終了日</label>
+          <input type="date" class="form-input" id="period-end" onchange="updatePeriodCount()">
+        </div>
+      </div>
+    </div>
+    <div id="period-count" style="margin-top:14px;font-size:12px;color:var(--txt2);min-height:20px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn btn-ghost" onclick="closePeriodOverlayBtn()">キャンセル</button>
+      <button class="btn btn-primary" onclick="doExportSitePDF()">この期間で出力</button>
+    </div>
+  </div>
+</div>
+
+<!-- Print toolbar (screen only) -->
+<div id="print-toolbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9000;background:#141414;color:#f5c518;padding:10px 16px;display:none;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+  <span style="font-size:14px;font-weight:700;" id="print-toolbar-title">印刷プレビュー</span>
+  <div style="display:flex;gap:8px;">
+    <button onclick="window.print()" style="background:#f5c518;color:#141414;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">🖨 印刷 / PDF保存</button>
+    <button onclick="closePrintOverlay()" style="background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:7px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;">✕ 閉じる</button>
+  </div>
+</div>
+<!-- Print content container (injected dynamically) -->
+<div id="print-content-wrap" style="display:none;"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ───────────────────────────────────────────────
+let state = { sites: [], reports: [], photos: [], workers: 5, weather: '晴れ' };
+let mainChart = null;
+let currentGraphTab = 'workers';
+let currentDetailId = null;
+
+// ─── LocalStorage persistence ────────────────────────────
+function saveState() {
+  try { localStorage.setItem('kenba_nippo_v1', JSON.stringify(state)); } catch(e) {}
+}
+function loadState() {
+  try {
+    const s = localStorage.getItem('kenba_nippo_v1');
+    if (s) state = JSON.parse(s);
+  } catch(e) {}
+}
+
+// ─── Init ─────────────────────────────────────────────────
+function init() {
+  loadState();
+  if (state.sites.length === 0) {
+    state.sites = ['熊本駅前ビル新築工事', '益城町住宅再建プロジェクト'];
+  }
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('new-date').value = today;
+  renderAll();
+}
+
+function renderAll() {
+  renderDashboard();
+  renderReports();
+  renderSites();
+  updateSiteSelects();
+  renderGraph();
+}
+
+// ─── Dashboard ────────────────────────────────────────────
+function renderDashboard() {
+  const now = new Date();
+  const monthR = state.reports.filter(r => {
+    const d = new Date(r.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  document.getElementById('stat-reports').textContent = monthR.length;
+  document.getElementById('stat-sites').textContent = state.sites.length;
+  const today = now.toISOString().split('T')[0];
+  const todayW = state.reports.filter(r => r.date === today).reduce((s, r) => s + (r.workers || 0), 0);
+  document.getElementById('stat-workers').textContent = todayW;
+  const recent = [...state.reports].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  const el = document.getElementById('recent-reports');
+  el.innerHTML = recent.length === 0
+    ? '<div class="empty-state">日報がまだありません<br>「記録」タブから最初の日報を作成してください</div>'
+    : recent.map(r => reportCardHtml(r)).join('');
+}
+
+// ─── Report Card HTML ─────────────────────────────────────
+function reportCardHtml(r) {
+  const wd = { '晴れ': '☀️', '曇り': '☁️', '雨': '🌧️', '雪': '❄️' };
+  const dateStr = r.date.replace(/-/g, '/');
+  return `<div class="report-card" onclick="openDetail(${r.id})">
+    <div class="report-meta">
+      <span class="tag tag-site">${escHtml(r.site)}</span>
+      <span class="tag tag-weather">${wd[r.weather] || ''}${r.weather} ${r.temp}℃</span>
+      <span style="font-size:11px;color:var(--muted);">${dateStr}</span>
+      <span style="font-size:11px;color:var(--txt2);">作業員 ${r.workers}人</span>
+    </div>
+    <div class="report-preview">${escHtml(r.content).substring(0, 90)}${r.content.length > 90 ? '…' : ''}</div>
+    ${r.photos && r.photos.length > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:6px;">📷 写真 ${r.photos.length}枚</div>` : ''}
+  </div>`;
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Reports List ─────────────────────────────────────────
+function renderReports() {
+  const filterSite = document.getElementById('filter-site').value;
+  const filterMonth = document.getElementById('filter-month').value;
+  let filtered = [...state.reports].sort((a, b) => b.date.localeCompare(a.date));
+  if (filterSite) filtered = filtered.filter(r => r.site === filterSite);
+  if (filterMonth) filtered = filtered.filter(r => r.date.substring(0, 7) === filterMonth);
+  const months = [...new Set(state.reports.map(r => r.date.substring(0, 7)))].sort().reverse();
+  const mSel = document.getElementById('filter-month');
+  const curM = mSel.value;
+  mSel.innerHTML = '<option value="">すべての月</option>' +
+    months.map(m => `<option value="${m}" ${m === curM ? 'selected' : ''}>${m.replace('-', '年')}月</option>`).join('');
+  const el = document.getElementById('reports-list');
+  el.innerHTML = filtered.length === 0
+    ? '<div class="empty-state">日報がありません</div>'
+    : filtered.map(r => reportCardHtml(r)).join('');
+}
+
+// ─── Sites ────────────────────────────────────────────────
+function renderSites() {
+  const el = document.getElementById('sites-list');
+  if (state.sites.length === 0) {
+    el.innerHTML = '<div class="empty-state">現場が登録されていません</div>';
+    return;
+  }
+  el.innerHTML = state.sites.map((s, i) => {
+    const cnt = state.reports.filter(r => r.site === s).length;
+    const lastR = [...state.reports].filter(r => r.site === s).sort((a,b) => b.date.localeCompare(a.date))[0];
+    const sEsc = s.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="site-item" style="flex-wrap:wrap;gap:10px;">
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:14px;font-weight:500;">${escHtml(s)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px;">
+          ${cnt}件の日報${lastR ? '&nbsp;最終：' + lastR.date : ''}
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;flex-shrink:0;">
+        <button class="btn btn-pdf" style="padding:5px 10px;font-size:12px;" onclick="openPeriodModal('${sEsc}')">📄 PDF出力</button>
+        <button class="btn btn-danger" style="padding:5px 10px;font-size:12px;" onclick="deleteSite(${i})">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateSiteSelects() {
+  const opts = state.sites.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+  document.getElementById('new-site').innerHTML = '<option value="">現場を選択してください</option>' + opts;
+  document.getElementById('filter-site').innerHTML = '<option value="">すべての現場</option>' + opts;
+  const gs = document.getElementById('graph-site-select');
+  const cur = gs.value;
+  gs.innerHTML = '<option value="">全現場</option>' + opts;
+  if (cur) gs.value = cur;
+}
+
+// ─── Graph ────────────────────────────────────────────────
+function switchGraphTab(tab, btn) {
+  currentGraphTab = tab;
+  document.querySelectorAll('.tab-sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderGraph();
+}
+
+function renderGraph() {
+  const selSite = document.getElementById('graph-site-select') ? document.getElementById('graph-site-select').value : '';
+  let reports = [...state.reports].sort((a, b) => a.date.localeCompare(b.date));
+  if (selSite) reports = reports.filter(r => r.site === selSite);
+  if (mainChart) { mainChart.destroy(); mainChart = null; }
+  const ctx = document.getElementById('mainChart');
+  if (!ctx) return;
+  const c = ctx.getContext('2d');
+  Chart.defaults.color = '#8a9bb5';
+  Chart.defaults.font.size = 11;
+
+  if (currentGraphTab === 'workers') {
+    const dates = [...new Set(reports.map(r => r.date))].slice(-14);
+    const datasets = selSite
+      ? [{ label: selSite, data: dates.map(d => reports.filter(r => r.date === d).reduce((s, r) => s + r.workers, 0)), borderColor: '#f5c518', backgroundColor: 'rgba(245,197,24,0.1)', tension: .35, fill: true, pointBackgroundColor: '#f5c518', pointRadius: 4 }]
+      : state.sites.map((s, i) => ({
+          label: s,
+          data: dates.map(d => reports.filter(r => r.date === d && r.site === s).reduce((sum, r) => sum + r.workers, 0)),
+          borderColor: i === 0 ? '#f5c518' : '#4a90d9',
+          backgroundColor: i === 0 ? 'rgba(245,197,24,0.08)' : 'rgba(74,144,217,0.08)',
+          tension: .35, fill: true, pointRadius: 3,
+          pointBackgroundColor: i === 0 ? '#f5c518' : '#4a90d9'
+        }));
+    mainChart = new Chart(c, { type: 'line', data: { labels: dates.map(d => d.slice(5)), datasets }, options: { responsive: true, plugins: { legend: { labels: { color: '#8a9bb5', font: { size: 11 } } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568', stepSize: 1 }, min: 0 } } } });
+  } else if (currentGraphTab === 'daily') {
+    const dates = [...new Set(reports.map(r => r.date))].slice(-14);
+    const counts = dates.map(d => reports.filter(r => r.date === d).length);
+    mainChart = new Chart(c, { type: 'bar', data: { labels: dates.map(d => d.slice(5)), datasets: [{ label: '日報件数', data: counts, backgroundColor: 'rgba(245,197,24,0.55)', borderColor: '#f5c518', borderWidth: 1, borderRadius: 4 }] }, options: { responsive: true, plugins: { legend: { labels: { color: '#8a9bb5' } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568' } }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568', stepSize: 1 }, min: 0 } } } });
+  } else {
+    const sitesToShow = selSite ? [selSite] : state.sites;
+    const now = new Date();
+    const thisMonth = r => { const d = new Date(r.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); };
+    const counts = sitesToShow.map(s => state.reports.filter(r => r.site === s && thisMonth(r)).length);
+    mainChart = new Chart(c, { type: 'bar', data: { labels: sitesToShow.map(s => s.length > 12 ? s.substring(0, 12) + '…' : s), datasets: [{ label: '今月の日報数', data: counts, backgroundColor: sitesToShow.map((_, i) => i === 0 ? 'rgba(245,197,24,0.6)' : 'rgba(74,144,217,0.6)'), borderColor: sitesToShow.map((_, i) => i === 0 ? '#f5c518' : '#4a90d9'), borderWidth: 1, borderRadius: 4 }] }, options: { indexAxis: 'y', responsive: true, plugins: { legend: { labels: { color: '#8a9bb5' } } }, scales: { x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568', stepSize: 1 }, min: 0 }, y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#4a5568' } } } } });
+    const pbEl = document.getElementById('site-progress-bars');
+    const maxR = Math.max(...sitesToShow.map(s => state.reports.filter(r => r.site === s).length), 1);
+    pbEl.innerHTML = '<div class="section-title" style="margin-top:14px;">累計日報数（現場別）</div>' +
+      sitesToShow.map(s => {
+        const cnt = state.reports.filter(r => r.site === s).length;
+        const pct = Math.round(cnt / maxR * 100);
+        return `<div class="progress-row">
+          <div class="progress-label" title="${escHtml(s)}">${escHtml(s)}</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+          <div class="progress-count">${cnt}件</div>
+        </div>`;
+      }).join('');
+    return;
+  }
+  document.getElementById('site-progress-bars').innerHTML = '';
+}
+
+// ─── Form actions ─────────────────────────────────────────
+function selectWeather(btn, w) {
+  document.querySelectorAll('.weather-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.weather = w;
+}
+
+function changeWorkers(delta) {
+  state.workers = Math.max(1, (state.workers || 1) + delta);
+  document.getElementById('workers-display').textContent = state.workers;
+}
+
+function handlePhotos(input) {
+  const files = Array.from(input.files);
+  if (files.length === 0) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      state.photos.push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        renderNewPhotoPreview();
+        input.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderNewPhotoPreview() {
+  const preview = document.getElementById('photo-preview');
+  if (state.photos.length === 0) { preview.innerHTML = ''; return; }
+  preview.innerHTML = state.photos.map((p, i) => `
+    <div style="position:relative;">
+      <img src="${p}" class="photo-thumb" alt="現場写真">
+      <button onclick="removeNewPhoto(${i})" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.7);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+    </div>`).join('');
+}
+
+function removeNewPhoto(idx) {
+  state.photos.splice(idx, 1);
+  renderNewPhotoPreview();
+}
+
+function saveReport() {
+  const site = document.getElementById('new-site').value;
+  const date = document.getElementById('new-date').value;
+  const content = document.getElementById('new-content').value.trim();
+  const temp = document.getElementById('new-temp').value || '—';
+  if (!site || !date || !content) { showToast('現場・日付・作業内容は必須です', true); return; }
+  const report = { id: Date.now(), site, date, weather: state.weather, temp, workers: state.workers, content, photos: [...state.photos] };
+  state.reports.unshift(report);
+  saveState();
+  clearForm();
+  showToast('日報を保存しました');
+  showPage('reports');
+}
+
+function clearForm() {
+  document.getElementById('new-content').value = '';
+  document.getElementById('new-temp').value = '';
+  document.getElementById('photo-preview').innerHTML = '';
+  document.getElementById('photo-input').value = '';
+  state.photos = [];
+  state.workers = 5;
+  document.getElementById('workers-display').textContent = '5';
+  document.querySelectorAll('.weather-btn').forEach((b, i) => b.classList.toggle('selected', i === 0));
+  state.weather = '晴れ';
+  document.getElementById('new-date').value = new Date().toISOString().split('T')[0];
+}
+
+function addSite() {
+  const name = document.getElementById('new-site-name').value.trim();
+  if (!name) return;
+  if (state.sites.includes(name)) { showToast('既に登録されています', true); return; }
+  state.sites.push(name);
+  document.getElementById('new-site-name').value = '';
+  saveState(); renderAll();
+  showToast('現場を追加しました');
+}
+
+function deleteSite(i) {
+  const name = state.sites[i];
+  const cnt = state.reports.filter(r => r.site === name).length;
+  const msg = cnt > 0 ? `「${name}」を削除しますか？\nこの現場の日報${cnt}件も削除されます。` : `「${name}」を削除しますか？`;
+  if (!confirm(msg)) return;
+  state.sites.splice(i, 1);
+  state.reports = state.reports.filter(r => r.site !== name);
+  saveState(); renderAll();
+  showToast('現場を削除しました');
+}
+
+// ─── Detail Modal ─────────────────────────────────────────
+function openDetail(id) {
+  currentDetailId = id;
+  const r = state.reports.find(x => x.id === id);
+  if (!r) return;
+  const wd = { '晴れ': '☀️', '曇り': '☁️', '雨': '🌧️', '雪': '❄️' };
+  document.getElementById('detail-site-badge').textContent = r.site;
+  document.getElementById('detail-content').innerHTML = `
+    <div class="grid-3" style="margin-bottom:14px;">
+      <div class="stat-card"><div class="stat-label">日付</div><div style="font-size:14px;font-weight:500;color:var(--txt);">${r.date.replace(/-/g,'/')}</div></div>
+      <div class="stat-card"><div class="stat-label">天気・気温</div><div style="font-size:14px;font-weight:500;color:var(--txt);">${wd[r.weather]||''}${r.weather} ${r.temp}℃</div></div>
+      <div class="stat-card"><div class="stat-label">作業員</div><div style="font-size:14px;font-weight:500;color:var(--txt);">${r.workers}人</div></div>
+    </div>
+    <div class="form-label" style="margin-bottom:7px;">作業内容・進捗</div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:13px;font-size:14px;line-height:1.8;color:var(--txt);margin-bottom:14px;white-space:pre-wrap;">${escHtml(r.content)}</div>
+    ${r.photos && r.photos.length > 0 ? `
+      <div class="form-label" style="margin-bottom:8px;">写真 (${r.photos.length}枚)</div>
+      <div class="photo-grid">${r.photos.map(p => `<img src="${p}" class="photo-thumb" alt="現場写真">`).join('')}</div>
+    ` : ''}
+    ${r.updatedAt ? `<div style="margin-top:12px;font-size:11px;color:var(--muted);">最終更新: ${new Date(r.updatedAt).toLocaleString('ja-JP')}</div>` : ''}`;
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+// ─── Edit Modal ───────────────────────────────────────────
+let editPhotos = [];
+let editWorkers = 5;
+let editWeather = '晴れ';
+
+function openEditModal() {
+  const r = state.reports.find(x => x.id === currentDetailId);
+  if (!r) return;
+
+  // 現場セレクト
+  const opts = state.sites.map(s => `<option value="${escHtml(s)}" ${s === r.site ? 'selected' : ''}>${escHtml(s)}</option>`).join('');
+  document.getElementById('edit-site').innerHTML = opts;
+
+  // 各フィールドを現在の値で埋める
+  document.getElementById('edit-date').value = r.date;
+  document.getElementById('edit-temp').value = r.temp === '—' ? '' : r.temp;
+  document.getElementById('edit-content').value = r.content;
+
+  editWorkers = r.workers;
+  document.getElementById('edit-workers-display').textContent = editWorkers;
+
+  editWeather = r.weather;
+  document.querySelectorAll('#edit-weather-grid .weather-btn').forEach(b => {
+    b.classList.toggle('selected', b.getAttribute('onclick').includes("'" + r.weather + "'"));
+  });
+
+  // 既存写真を表示
+  editPhotos = r.photos ? [...r.photos] : [];
+  renderEditPhotos();
+  document.getElementById('edit-photo-preview').innerHTML = '';
+  document.getElementById('edit-photo-input').value = '';
+
+  document.getElementById('edit-overlay').classList.add('open');
+}
+
+function renderEditPhotos() {
+  const el = document.getElementById('edit-photo-current');
+  if (editPhotos.length === 0) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:4px;">現在の写真はありません</div>';
+  } else {
+    el.innerHTML = editPhotos.map((p, i) =>
+      `<div style="position:relative;">
+        <img src="${p}" class="photo-thumb" alt="写真">
+        <button onclick="removeEditPhoto(${i})" style="position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.7);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>`
+    ).join('');
+  }
+}
+
+function removeEditPhoto(idx) {
+  editPhotos.splice(idx, 1);
+  renderEditPhotos();
+}
+
+function handleEditPhotos(input) {
+  const files = Array.from(input.files);
+  let loaded = 0;
+  const newPhotos = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      newPhotos.push(e.target.result);
+      loaded++;
+      if (loaded === files.length) {
+        editPhotos = [...editPhotos, ...newPhotos];
+        renderEditPhotos();
+        document.getElementById('edit-photo-preview').innerHTML = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function selectEditWeather(btn, w) {
+  document.querySelectorAll('#edit-weather-grid .weather-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  editWeather = w;
+}
+
+function changeEditWorkers(delta) {
+  editWorkers = Math.max(1, editWorkers + delta);
+  document.getElementById('edit-workers-display').textContent = editWorkers;
+}
+
+function updateReport() {
+  const site = document.getElementById('edit-site').value;
+  const date = document.getElementById('edit-date').value;
+  const content = document.getElementById('edit-content').value.trim();
+  const temp = document.getElementById('edit-temp').value || '—';
+  if (!site || !date || !content) { showToast('現場・日付・作業内容は必須です', true); return; }
+
+  const idx = state.reports.findIndex(r => r.id === currentDetailId);
+  if (idx === -1) return;
+  state.reports[idx] = {
+    ...state.reports[idx],
+    site, date, weather: editWeather, temp,
+    workers: editWorkers, content,
+    photos: [...editPhotos],
+    updatedAt: new Date().toISOString()
+  };
+  saveState();
+  closeEditOverlayBtn();
+  openDetail(currentDetailId); // 詳細を再描画
+  renderAll();
+  showToast('日報を更新しました');
+}
+
+function deleteReportFromEdit() {
+  if (!confirm('この日報を削除しますか？')) return;
+  state.reports = state.reports.filter(r => r.id !== currentDetailId);
+  saveState();
+  closeEditOverlayBtn();
+  closeDetailBtn();
+  renderAll();
+  showToast('日報を削除しました');
+}
+
+function closeEditOverlay(e) { if (e.target === document.getElementById('edit-overlay')) closeEditOverlayBtn(); }
+function closeEditOverlayBtn() { document.getElementById('edit-overlay').classList.remove('open'); }
+
+
+function closeDetailBtn() { document.getElementById('detail-overlay').classList.remove('open'); }
+
+function deleteReport(id) {
+  if (!confirm('この日報を削除しますか？')) return;
+  state.reports = state.reports.filter(r => r.id !== id);
+  saveState(); closeDetailBtn(); renderAll();
+  showToast('日報を削除しました');
+}
+
+// ─── Page navigation ──────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const idx = ['dashboard', 'graph', 'reports', 'new', 'sites'].indexOf(name);
+  document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'reports') renderReports();
+  if (name === 'graph') setTimeout(renderGraph, 50);
+}
+
+// ─── PDF Export (現場まとめ) ─────────────────────────────
+// ─── Period Modal ──────────────────────────────────────────────────────
+let currentPeriodSite = '';
+let currentPeriodTab = 'all';
+
+function openPeriodModal(siteName) {
+  currentPeriodSite = siteName;
+  currentPeriodTab = 'all';
+
+  // ラベル表示
+  document.getElementById('period-site-label').textContent = '現場：' + siteName;
+
+  // タブリセット
+  document.querySelectorAll('#period-overlay .tab-sub-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+  document.getElementById('period-all-section').style.display = '';
+  document.getElementById('period-month-section').style.display = 'none';
+  document.getElementById('period-custom-section').style.display = 'none';
+
+  // 月セレクトをその現場の日報から生成
+  const months = [...new Set(
+    state.reports.filter(r => r.site === siteName).map(r => r.date.substring(0,7))
+  )].sort().reverse();
+  const mSel = document.getElementById('period-month-select');
+  mSel.innerHTML = months.map(m => {
+    const [y, mo] = m.split('-');
+    return '<option value="' + m + '">' + y + '年' + parseInt(mo) + '月</option>';
+  }).join('');
+
+  // 日付範囲の初期値
+  const siteReports = state.reports.filter(r => r.site === siteName).sort((a,b) => a.date.localeCompare(b.date));
+  if (siteReports.length > 0) {
+    document.getElementById('period-start').value = siteReports[0].date;
+    document.getElementById('period-end').value = siteReports[siteReports.length-1].date;
+  }
+
+  updatePeriodCount();
+  document.getElementById('period-overlay').classList.add('open');
+}
+
+function switchPeriodTab(tab, btn) {
+  currentPeriodTab = tab;
+  document.querySelectorAll('#period-overlay .tab-sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('period-all-section').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('period-month-section').style.display = tab === 'month' ? '' : 'none';
+  document.getElementById('period-custom-section').style.display = tab === 'custom' ? '' : 'none';
+  updatePeriodCount();
+}
+
+function getFilteredReports() {
+  let reports = state.reports.filter(r => r.site === currentPeriodSite);
+  if (currentPeriodTab === 'month') {
+    const m = document.getElementById('period-month-select').value;
+    reports = reports.filter(r => r.date.startsWith(m));
+  } else if (currentPeriodTab === 'custom') {
+    const start = document.getElementById('period-start').value;
+    const end = document.getElementById('period-end').value;
+    if (start) reports = reports.filter(r => r.date >= start);
+    if (end) reports = reports.filter(r => r.date <= end);
+  }
+  return reports.sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function updatePeriodCount() {
+  const reports = getFilteredReports();
+  const el = document.getElementById('period-count');
+  if (reports.length === 0) {
+    el.innerHTML = '<span style="color:var(--danger);">この期間に日報がありません</span>';
+  } else {
+    const workers = reports.reduce((s,r) => s+(r.workers||0), 0);
+    const photos = reports.reduce((s,r) => s+(r.photos?r.photos.length:0), 0);
+    el.innerHTML = '<span style="color:var(--ok);">✓ ' + reports.length + '件の日報（延べ' + workers + '人・写真' + photos + '枚）を出力します</span>';
+  }
+}
+
+function closePeriodOverlay(e) { if (e.target === document.getElementById('period-overlay')) closePeriodOverlayBtn(); }
+function closePeriodOverlayBtn() { document.getElementById('period-overlay').classList.remove('open'); }
+
+function doExportSitePDF() {
+  const reports = getFilteredReports();
+  if (reports.length === 0) { showToast('この期間に日報がありません', true); return; }
+  // window.openはユーザー操作の直後に呼び出さないとブロックされるため、先にopenしてからモーダルを閉じる
+  exportSitePDF(currentPeriodSite, reports);
+  closePeriodOverlayBtn();
+}
+
+function exportSitePDF(siteName, filteredReports) {
+  const siteReports = filteredReports
+    ? [...filteredReports].sort((a,b) => a.date.localeCompare(b.date))
+    : [...state.reports].filter(r => r.site === siteName).sort((a,b) => a.date.localeCompare(b.date));
+  if (siteReports.length === 0) { showToast('この期間に日報がありません', true); return; }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ja-JP', {year:'numeric',month:'long',day:'numeric'});
+  const wd = {'晴れ':'☀️ 晴れ','曇り':'☁️ 曇り','雨':'🌧️ 雨','雪':'❄️ 雪'};
+  const totalWorkers = siteReports.reduce((s,r) => s+(r.workers||0), 0);
+  const totalPhotos  = siteReports.reduce((s,r) => s+(r.photos?r.photos.length:0), 0);
+
+  let periodLabel = '全期間';
+  if (typeof currentPeriodTab !== 'undefined') {
+    if (currentPeriodTab === 'month') {
+      const mEl = document.getElementById('period-month-select');
+      if (mEl && mEl.value) { const [y,mo]=mEl.value.split('-'); periodLabel=y+'年'+parseInt(mo)+'月'; }
+    } else if (currentPeriodTab === 'custom') {
+      const ps = (document.getElementById('period-start')||{}).value||'';
+      const pe = (document.getElementById('period-end')||{}).value||'';
+      if (ps||pe) periodLabel = (ps||'') + ' 〜 ' + (pe||'');
+    }
+  }
+
+  const byMonth = {};
+  siteReports.forEach(r => { const m=r.date.substring(0,7); if(!byMonth[m]) byMonth[m]=[]; byMonth[m].push(r); });
+
+  const monthSections = Object.entries(byMonth).map(([month, rpts]) => {
+    const [y,m] = month.split('-');
+    const mWorkers = rpts.reduce((s,r) => s+(r.workers||0), 0);
+    const rows = rpts.map((r,ri) => {
+      const photoHtml = r.photos && r.photos.length > 0
+        ? '<div class="report-photos">' + r.photos.map((p,pi) =>
+            '<div class="report-photo-wrap"><img src="'+p+'" class="report-photo" alt="写真'+(pi+1)+'"><div class="report-photo-label">写真 '+(pi+1)+'</div></div>'
+          ).join('') + '</div>'
+        : '';
+      return '<div class="report-block'+(ri>0?' report-block-sep':'')+'">'
+        +'<div class="report-block-header">'
+        +'<div class="report-date-badge">'+r.date+'</div>'
+        +'<div class="report-meta-row">'
+        +'<span class="meta-pill weather">'+(wd[r.weather]||r.weather)+'　'+r.temp+'℃</span>'
+        +'<span class="meta-pill workers">作業員 '+r.workers+'人</span>'
+        +(r.updatedAt?'<span class="meta-pill updated">更新済</span>':'')
+        +'</div></div>'
+        +'<div class="report-content">'+escHtml(r.content)+'</div>'
+        +photoHtml+'</div>';
+    }).join('');
+    return '<div class="month-section"><div class="month-header">'
+      +'<span class="month-label">'+y+'年'+parseInt(m)+'月</span>'
+      +'<span class="month-stats">'+rpts.length+'件　延べ'+mWorkers+'人</span>'
+      +'</div>'+rows+'</div>';
+  }).join('');
+
+  const html = '<div class="header"><div class="header-title">現場日報まとめ</div>'
+    +'<div class="header-date">対象期間：'+periodLabel+'　出力：'+dateStr+'</div></div>'
+    +'<div class="accent-bar"></div><div class="body">'
+    +'<div class="site-banner">'+escHtml(siteName)+'</div>'
+    +'<div class="summary-cards">'
+    +'<div class="summary-card"><div class="summary-label">総日報数</div><div class="summary-num">'+siteReports.length+'</div><div class="summary-unit">件</div></div>'
+    +'<div class="summary-card"><div class="summary-label">延べ作業員数</div><div class="summary-num">'+totalWorkers+'</div><div class="summary-unit">人</div></div>'
+    +'<div class="summary-card"><div class="summary-label">添付写真数</div><div class="summary-num">'+totalPhotos+'</div><div class="summary-unit">枚</div></div>'
+    +'</div>'
+    +'<div class="summary-card" style="margin-bottom:18px;padding:10px 16px;">'
+    +'<div style="font-size:10px;color:#aaa;margin-bottom:2px;">工事期間</div>'
+    +'<div style="font-size:13px;font-weight:700;">'+siteReports[0].date+' 〜 '+siteReports[siteReports.length-1].date+'</div>'
+    +'</div>'
+    +monthSections
+    +'<div class="footer"><span>現場日報アプリ</span><span>'+dateStr+'</span></div>'
+    +'</div>';
+
+  openPrintWindow(html, '現場日報まとめ - ' + siteName);
+}
+
+// ─── PDF共通：アプリ内プレビューを開く ─────────────────────────────────────────────
+// ─── 印刷プレビュー ─────────────────────────────────────────────────────────────────────
+const PRINT_CSS = `
+  @media print {
+    body > *:not(#print-content-wrap) { display: none !important; }
+    #print-content-wrap { display: block !important; }
+    #print-toolbar { display: none !important; }
+  }
+  @media screen {
+    #print-content-wrap.active {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 8000;
+      background: #f5f5f5;
+      overflow-y: auto;
+      padding-top: 52px;
+    }
+  }
+`;
+
+// 印刷用CSSを一度だけ挿入
+(function() {
+  const st = document.createElement('style');
+  st.id = 'print-css';
+  st.textContent = PRINT_CSS;
+  document.head.appendChild(st);
+})();
+
+const CONTENT_CSS = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, .print-body { font-family: 'Hiragino Sans', 'Noto Sans JP', 'Yu Gothic', 'Meiryo', sans-serif; background: #fff; color: #1a1a1a; font-size: 13px; line-height: 1.6; }
+  .header { background: #141414; color: #f5c518; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .header-title { font-size: 16px; font-weight: 700; letter-spacing: .05em; }
+  .header-date { font-size: 11px; color: #888; }
+  .accent-bar { background: #f5c518; height: 3px; }
+  .body { padding: 20px 24px; max-width: 860px; margin: 0 auto; background: #fff; }
+  .site-banner { background: #fffbe6; border: 1.5px solid #f5c518; border-radius: 6px; padding: 10px 16px; font-size: 15px; font-weight: 700; color: #3a2e00; margin-bottom: 16px; }
+  .cards, .summary-cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 16px; }
+  .card, .summary-card { background: #fafafa; border: 1px solid #e5e0d0; border-radius: 6px; padding: 10px 14px; text-align: center; }
+  .card-label, .summary-label { font-size: 10px; color: #888; margin-bottom: 4px; }
+  .card-value, .summary-num { font-size: 15px; font-weight: 700; color: #1a1a1a; }
+  .summary-num { font-size: 28px; }
+  .summary-unit { font-size: 12px; color: #888; }
+  .section-head { background: #f5f0e0; border-left: 4px solid #f5c518; padding: 6px 12px; font-size: 12px; font-weight: 700; color: #3a2e00; margin: 18px 0 10px; border-radius: 0 4px 4px 0; }
+  .content-box { background: #fafafa; border: 1px solid #e5e0d0; border-radius: 6px; padding: 14px; white-space: pre-wrap; font-size: 13px; line-height: 1.8; color: #222; }
+  .photo-wrap { margin-bottom: 6px; page-break-inside: avoid; }
+  .photo-wrap img { width: 100%; border-radius: 6px; border: 1px solid #ddd; display: block; }
+  .photo-label { background: #141414; color: #f5c518; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 0 0 6px 6px; }
+  .row-table { width: 100%; border-collapse: collapse; }
+  .row-table tr { border-bottom: 1px solid #f0ebe0; }
+  .row-table tr:nth-child(even) { background: #fafaf5; }
+  .row-table td { padding: 7px 10px; font-size: 12px; vertical-align: middle; }
+  .row-table .date-col { color: #8a7a30; font-weight: 700; width: 88px; white-space: nowrap; }
+  .row-table .site-col { color: #222; width: 140px; }
+  .row-table .meta-col { color: #888; width: 120px; font-size: 11px; }
+  .row-table .content-col { color: #555; font-size: 11px; }
+  .bar-wrap { background: #e8e3d0; border-radius: 20px; height: 8px; overflow: hidden; margin-top: 3px; }
+  .bar-fill { background: #f5c518; height: 100%; border-radius: 20px; }
+  .site-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0ebe0; }
+  .site-name { font-weight: 700; font-size: 13px; flex: 1; }
+  .site-meta { font-size: 11px; color: #888; }
+  .site-cnt { font-size: 12px; font-weight: 700; color: #8a7a30; min-width: 36px; text-align: right; }
+  .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e8e3d0; font-size: 10px; color: #aaa; display: flex; justify-content: space-between; }
+  .report-block { padding: 14px 0; }
+  .report-block-sep { border-top: 1px dashed #e8e3d0; }
+  .report-block-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .report-date-badge { background: #f5c518; color: #1a1a1a; font-weight: 700; font-size: 12px; padding: 3px 10px; border-radius: 4px; white-space: nowrap; }
+  .report-meta-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .meta-pill { font-size: 11px; padding: 2px 8px; border-radius: 20px; white-space: nowrap; }
+  .meta-pill.weather { background: #e8f4fd; color: #2a6099; border: 1px solid #b8d8f0; }
+  .meta-pill.workers { background: #edf7ed; color: #2a6640; border: 1px solid #b8e0bc; }
+  .meta-pill.updated { background: #f5f0ff; color: #6040b0; border: 1px solid #d0c0f0; }
+  .report-content { background: #fafaf5; border-left: 3px solid #f5c518; border-radius: 0 4px 4px 0; padding: 10px 14px; font-size: 13px; line-height: 1.8; color: #222; white-space: pre-wrap; margin-bottom: 10px; }
+  .report-photos { display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 8px; }
+  .report-photo-wrap { page-break-inside: avoid; margin-bottom: 0; }
+  .report-photo { width: 100%; border-radius: 6px; border: 1px solid #ddd; display: block; }
+  .report-photo-label { background: #141414; color: #f5c518; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 0 0 6px 6px; }
+  .month-section { margin-bottom: 24px; }
+  .month-header { display: flex; justify-content: space-between; align-items: center; background: #141414; color: #f5c518; padding: 8px 14px; border-radius: 6px; margin-bottom: 4px; }
+  .month-label { font-size: 13px; font-weight: 700; }
+  .month-stats { font-size: 11px; color: #aaa; }
+`;
+
+function openPrintWindow(htmlContent, title) {
+  const toolbar = document.getElementById('print-toolbar');
+  const wrap = document.getElementById('print-content-wrap');
+  document.getElementById('print-toolbar-title').textContent = title;
+
+  wrap.innerHTML = '<style>' + CONTENT_CSS + '</style>' + htmlContent;
+  wrap.classList.add('active');
+  wrap.style.display = 'block';
+  toolbar.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  wrap.scrollTop = 0;
+}
+
+function closePrintOverlay() {
+  const toolbar = document.getElementById('print-toolbar');
+  const wrap = document.getElementById('print-content-wrap');
+  wrap.classList.remove('active');
+  wrap.style.display = 'none';
+  toolbar.style.display = 'none';
+  wrap.innerHTML = '';
+  document.body.style.overflow = '';
+}
+
+
+
+
+// ─── PDF Export (Graph) ───────────────────────────────────
+function exportGraphPDF() {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  const selSite = document.getElementById('graph-site-select').value || '全現場';
+  const sitesToShow = selSite === '全現場' ? state.sites : [selSite];
+  const thisMonth = r => { const d = new Date(r.date); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); };
+  const totalR = state.reports.filter(r => selSite === '全現場' || r.site === selSite).length;
+  const monthR = state.reports.filter(r => (selSite === '全現場' || r.site === selSite) && thisMonth(r)).length;
+  const totalW = state.reports.filter(r => selSite === '全現場' || r.site === selSite).reduce((s, r) => s + r.workers, 0);
+  const recent = [...state.reports].filter(r => selSite === '全現場' || r.site === selSite)
+    .sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+  const maxCnt = Math.max(...sitesToShow.map(s => state.reports.filter(r => r.site === s).length), 1);
+
+  const siteRows = sitesToShow.map(s => {
+    const cnt = state.reports.filter(r => r.site === s).length;
+    const mCnt = state.reports.filter(r => r.site === s && thisMonth(r)).length;
+    const lastR = [...state.reports].filter(r => r.site === s).sort((a,b) => b.date.localeCompare(a.date))[0];
+    const pct = Math.round(cnt / maxCnt * 100);
+    return `<div class="site-row">
+      <div style="flex:1;">
+        <div class="site-name">${escHtml(s)}</div>
+        <div class="site-meta">累計: ${cnt}件 ／ 今月: ${mCnt}件 ／ 最終記録: ${lastR ? lastR.date : '—'}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="site-cnt">${cnt}件</div>
+    </div>`;
+  }).join('');
+
+  const recentRows = recent.map((r, i) => `<tr>
+    <td class="date-col">${r.date}</td>
+    <td class="site-col">${escHtml(r.site)}</td>
+    <td class="meta-col">${r.weather} ${r.temp}℃ ／ ${r.workers}人</td>
+    <td class="content-col">${escHtml(r.content.substring(0, 50))}${r.content.length > 50 ? '…' : ''}</td>
+  </tr>`).join('');
+
+  const html = `
+    <div class="header">
+      <div class="header-title">工程進捗レポート</div>
+      <div class="header-date">${dateStr}　対象：${escHtml(selSite)}</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="body">
+      <div class="summary-cards">
+        <div class="summary-card"><div class="summary-label">累計日報数</div><div class="summary-num">${totalR}</div><div class="summary-unit">件</div></div>
+        <div class="summary-card"><div class="summary-label">今月の日報</div><div class="summary-num">${monthR}</div><div class="summary-unit">件</div></div>
+        <div class="summary-card"><div class="summary-label">延べ作業員数</div><div class="summary-num">${totalW}</div><div class="summary-unit">人</div></div>
+      </div>
+      <div class="section-head">現場別 累計日報数</div>
+      ${siteRows}
+      <div class="section-head">最近の日報（直近10件）</div>
+      <table class="row-table"><tbody>${recentRows}</tbody></table>
+      <div class="footer"><span>現場日報アプリ</span><span>${dateStr}</span></div>
+    </div>`;
+  openPrintWindow(html, '工程進捗レポート');
+}
+
+// ─── PDF Export (Single) ──────────────────────────────────
+function exportSinglePDF() {
+  const r = state.reports.find(x => x.id === currentDetailId);
+  if (!r) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
+  const wd = { '晴れ': '☀️ 晴れ', '曇り': '☁️ 曇り', '雨': '🌧️ 雨', '雪': '❄️ 雪' };
+
+  const photoHtml = (r.photos && r.photos.length > 0)
+    ? `<div class="section-head">現場写真（${r.photos.length}枚）</div>` +
+      r.photos.map((p, i) => `
+        <div class="photo-wrap">
+          <img src="${p}" alt="写真${i+1}">
+          <div class="photo-label">写真 ${i+1} / ${r.photos.length}</div>
+        </div>`).join('')
+    : '';
+
+  const updatedNote = r.updatedAt
+    ? `<div style="font-size:10px;color:#aaa;margin-top:4px;">最終更新：${new Date(r.updatedAt).toLocaleString('ja-JP')}</div>`
+    : '';
+
+  const html = `
+    <div class="header">
+      <div class="header-title">現場日報</div>
+      <div class="header-date">${dateStr}</div>
+    </div>
+    <div class="accent-bar"></div>
+    <div class="body">
+      <div class="site-banner">${escHtml(r.site)}</div>
+      <div class="cards">
+        <div class="card"><div class="card-label">日付</div><div class="card-value">${r.date}</div></div>
+        <div class="card"><div class="card-label">天気・気温</div><div class="card-value">${wd[r.weather] || r.weather}　${r.temp}℃</div></div>
+        <div class="card"><div class="card-label">作業員人数</div><div class="card-value">${r.workers}人</div></div>
+      </div>
+      <div class="section-head">作業内容・進捗</div>
+      <div class="content-box">${escHtml(r.content)}</div>
+      ${photoHtml}
+      <div class="footer">
+        <span>現場日報アプリ</span>
+        <span>${dateStr}</span>
+      </div>
+      ${updatedNote}
+    </div>`;
+  openPrintWindow(html, `日報_${r.date}_${r.site}`);
+}
+
+// ─── Toast ────────────────────────────────────────────────
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isError ? 'var(--danger)' : 'var(--ok)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Start ────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
